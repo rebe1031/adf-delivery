@@ -1,0 +1,94 @@
+{
+	"name": "df_productos_menu",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "productos_menu",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "productos_menu_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "aggregate1"
+				},
+				{
+					"name": "derivedColumn2"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          producto_id as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_lista as string,",
+				"          costo_estimado as string,",
+				"          disponible as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(categoria = initCap(lower(trim(categoria))),",
+				"          precio_lista = replace(replace(trim(precio_lista),'Bs. ',''),',','.'),",
+				"          costo_estimado = replace(replace(trim(costo_estimado),'Bs. ',''),',','.'),",
+				"          disponible = iif(lower(trim(disponible))=='si',true(),false()),",
+				"          nombre_producto = initCap(regexReplace(trim(nombre_producto),'\\\\s+[0-9]+$',''))) ~> derivedColumn1",
+				"derivedColumn1 split(toDecimal(costo_estimado)>=0 && toDecimal(precio_lista)>=0 && !isNull(categoria),",
+				"     disjoint: false) ~> split1@(validos, rechazados)",
+				"split1@validos aggregate(groupBy(producto_id),",
+				"     nombre_producto = first(nombre_producto),",
+				"          categoria = first(categoria),",
+				"          precio_lista = first(precio_lista),",
+				"          costo_estimado = first(costo_estimado),",
+				"          disponible = first(disponible)) ~> aggregate1",
+				"aggregate1 derive(precio_lista = toDecimal(precio_lista),",
+				"          costo_estimado = toDecimal(costo_estimado)) ~> derivedColumn2",
+				"derivedColumn2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          producto_id as string,",
+				"          nombre_producto as string,",
+				"          categoria as string,",
+				"          precio_lista as decimal(12,2),",
+				"          costo_estimado as decimal(12,2),",
+				"          disponible as boolean",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          producto_id,",
+				"          nombre_producto,",
+				"          categoria,",
+				"          precio_lista,",
+				"          costo_estimado,",
+				"          disponible",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}

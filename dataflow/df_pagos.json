@@ -1,0 +1,78 @@
+{
+	"name": "df_pagos",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "pagos_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "pagos_sql",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "derivedColumn2"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          pago_id as string,",
+				"          pedido_id as string,",
+				"          fecha_pago as string,",
+				"          metodo_pago as string,",
+				"          estado_pago as string,",
+				"          monto_pagado as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(metodo_pago = trim(metodo_pago),",
+				"          estado_pago = trim(estado_pago),",
+				"          monto_pagado = replace(trim(monto_pagado),',','.')) ~> derivedColumn1",
+				"derivedColumn1 derive(monto_pagado = toDecimal(monto_pagado),",
+				"          fecha_pago = toDate(fecha_pago)) ~> derivedColumn2",
+				"derivedColumn2 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          pago_id as string,",
+				"          pedido_id as string,",
+				"          fecha_pago as date,",
+				"          metodo_pago as string,",
+				"          estado_pago as string,",
+				"          monto_pagado as decimal(12,2)",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          pago_id,",
+				"          pedido_id,",
+				"          fecha_pago,",
+				"          metodo_pago,",
+				"          estado_pago,",
+				"          monto_pagado",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
